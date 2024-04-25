@@ -1,0 +1,107 @@
+---
+title: "hm10"
+author: "Mason Reed"
+date: "2024-04-24"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE)
+```
+
+```{r}
+library(ggplot2)
+library(mosaic)
+library(tidyverse)
+library(effectsize)
+library(MatchIt)
+library(moderndive)
+redlining = read.csv('redlining.csv')
+groceries = read.csv('groceries.csv')
+```
+
+# 1. Redlining
+
+### Question
+The question I'm trying to answer is: Is there is an association between the number of FAIR policies and racial composition of a ZIP code?. This is for the purpose of trying to find evidence of redlining.
+
+### Approach
+I used a multiple linear regression model that modeled the FAIR policies rate over the predictor variables of minority, fires, age, and income. Then I looked at the standardized coefficients since the units between predictor variables were very different. I also modeled the relationship between income and minority makeup since the two appeared to be correlated and associated with the FAIR policies rate.
+
+### Results
+
+```{r}
+redline_lm = lm(policies ~ income + fire + age + minority, data = redlining)
+
+ggplot(redlining, aes(x = minority, y = income)) + geom_point() + geom_smooth(method = lm) + labs(x = '% of Residents Who Are Minority', y = ' Median Income in 1000s of Dollars', title = 'Income vs Minorirty Makeup In Different ZIP Codes')
+confint(redline_lm)
+standardize_parameters(redline_lm)
+```
+
+Looking at the standardized coefficients for the multiple regression model on FAIR policies with the minority, fire, age, income variables, the minority rate had a standardized coefficient of 0.43 with the 95% confidence interval for this being between 0.13 and 0.74. The plot on income shows that lower income ZIP codes had higher populations of minorities but the confidence interval for its standardized coefficient was wide and included zero (-0.41 to 0.27). While the rates of minorities and income appeared to confound, because the interval of the standardized coefficient for income was so wide, I think that effect of the minority population is still significant. The standardized coeffcient for the minority variable was also the highest out of the predictor variables.
+
+# Conclusion:
+It appears that there is an association between racial composition and the number of FAIR policies in a ZIP code since when looking out how median income, rates of fire, age of housing units, and minority population affect the number of FAIR policies, the rate of minorities seems to have the largest effect. 
+
+
+# 2. Grocery Prices
+
+### A: 
+```{r}
+pricesByStore = groceries %>%
+  group_by(Store) %>%
+  summarise(avg_price = mean(Price))
+ggplot(pricesByStore) + geom_col(aes(x = avg_price, y = Store), fill = 'navy') + labs(x = 'Average Price Of Products Sold ($)', y='Store', title = 'Average Price Of Products At Different Texas Grocery Chains')
+
+```
+
+Whole Foods has the highest average price with Wheatsville Food Co-op close in 2nd, with both having average prices just under $4 . Fiesta has the lowest average price of products just over 2 dollars.
+
+### B:
+```{r}
+stores_wProduct = groceries %>%
+  group_by(Product) %>%
+  summarise(num_stores = count(Product))
+ggplot(stores_wProduct) + geom_col(aes(x = num_stores, y = Product), fill ='maroon') + labs(title = 'Number Of Stores Containing Specific Product', x = 'Number Of Stores',y ='Product')
+```
+
+### C: Regression For Store Type
+
+```{r, results=FALSE}
+type_lm = lm(Price ~ Product + Type, data = groceries)
+round(confint(type_lm),2)
+```
+
+Compared with ordinary grocery stores (like Albertsons, HEB, or Krogers), convenience stores charge somewhere between
+0.41 and 0.92 dollars more for the same product.
+
+### D: Price Vs. Product And Store
+```{r}
+store_lm = lm(Price ~ Product + Store,data = groceries)
+get_regression_table(store_lm) %>%
+  slice(41:53)
+```
+
+Walmart and Kroger Fresh Fare seem to charge to lowest price comparing to same product. Wheatsville Food Co-op and Whole Foods seem to charge the most.
+
+
+### E:
+It appears that they have similar prices since the confidence interval for Central Market's price offset with Albertson is between $ -0.92 and -0.23, while HEB's is between -0.95 and -0.35 dollars. Since their intervals overlap so much it's hard to confidently say that Central Market charges more. The estimated offset for Central Market at 0.57 isn't extreme compared to the other stores.
+
+### F: Income
+```{r, results=FALSE}
+groceries = mutate(groceries, Income10k = Income/10000)
+income10k_lm = lm(Price ~ Product + Income10k, data= groceries )
+get_regression_table(income10k_lm)
+standardize_parameters(income10k_lm)
+```
+
+Since the sign of the Income10k coefficient is negative it appears that consumers in poorer ZIP codes pay more for the same product since a negative signs means that the prices are expected to get lower with higher median income. 
+
+A one-standard deviation increase in the income of a ZIP code seems to be associated with
+a -.03 standard-deviation change in the price that consumers in that ZIP code expect to pay for
+the same product.
+
+https://github.com/masoncancode/sds315hw10
+
+
